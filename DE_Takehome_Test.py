@@ -8,7 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 chrome_options = Options()
 chrome_options.add_argument("--headless") 
-service = Service(r"C:\Python Projects\Basic\LEARNING_SELENIUM\chromedriver.exe")
+service = Service("chromedriver.exe")
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
 scraped_quotes = []
