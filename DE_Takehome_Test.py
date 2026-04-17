@@ -11,7 +11,7 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime
 
-S3_BUCKET_NAME = "DE_results"
+S3_BUCKET_NAME = "de-takehome-exam-bucket-2026"
 FTP_HOST = "ftp.dlptest.com"
 FTP_USER = "dlpuser"
 FTP_PASS = "rNrKYTX9g7z3RgJRmxWuGHbeu"
