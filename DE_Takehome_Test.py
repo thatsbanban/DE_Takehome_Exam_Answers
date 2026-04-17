@@ -1,6 +1,7 @@
 import pandas as pd
 import boto3
 import os
+import time
 from ftplib import FTP
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -9,7 +10,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime
-
 
 S3_BUCKET_NAME = "DE_results"
 FTP_HOST = "ftp.dlptest.com"
@@ -23,39 +23,32 @@ def run_scraper():
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     
-    service = Service() 
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    
+    driver = webdriver.Chrome(options=chrome_options)
     scraped_quotes = []
 
     try:
         driver.get("https://quotes.toscrape.com/search.aspx")
         wait = WebDriverWait(driver, 15)
 
-        author_elem = wait.until(EC.presence_of_element_located((By.ID, "author")))
-        dropdown_author = Select(author_elem)
-        authors = [option.text for option in dropdown_author.options if "--" not in option.text]
+        author_dropdown = Select(wait.until(EC.presence_of_element_located((By.ID, "author"))))
+        authors = [opt.text for opt in author_dropdown.options if "--" not in opt.text]
 
         for author in authors:
-            print(f"Processing Author: {author}")
-            dropdown_author = Select(driver.find_element(By.ID, "author"))
-            dropdown_author.select_by_visible_text(author)
+            print(f"--- Scraping: {author} ---")
+            Select(driver.find_element(By.ID, "author")).select_by_visible_text(author)
             
-            wait.until(EC.presence_of_element_located((By.ID, "tag")))
-            dropdown_tags = Select(driver.find_element(By.ID, "tag"))
-            tags = [option.text for option in dropdown_tags.options if "--" not in option.text]
+            tag_dropdown = Select(wait.until(EC.presence_of_element_located((By.ID, "tag"))))
+            tags = [opt.text for opt in tag_dropdown.options if "--" not in opt.text]
 
             for tag in tags:
-                dropdown_tags = Select(driver.find_element(By.ID, "tag"))
-                dropdown_tags.select_by_visible_text(tag)
+                Select(driver.find_element(By.ID, "author")).select_by_visible_text(author)
+                Select(driver.find_element(By.ID, "tag")).select_by_visible_text(tag)
+                
+                driver.find_element(By.NAME, "submit_button").click()
+                time.sleep(0.5) 
 
-                submit_button = driver.find_element(By.NAME, "submit_button")
-                driver.execute_script("arguments[0].click();", submit_button)
-            
-                wait.until(EC.presence_of_element_located((By.CLASS_NAME, "content")))
-                listed_quotes = driver.find_elements(By.CLASS_NAME, "quote")
-
-                for q in listed_quotes:
+                quotes = driver.find_elements(By.CLASS_NAME, "quote")
+                for q in quotes:
                     scraped_quotes.append({
                         "Author": author,
                         "Tag": tag,
@@ -64,11 +57,11 @@ def run_scraper():
 
         df = pd.DataFrame(scraped_quotes)
         df.to_csv(LOCAL_FILE, index=False, encoding="utf-8-sig")
-        print(f"Scraping complete. File saved to {LOCAL_FILE}")
+        print(f"Done! Found {len(df)} total quotes.")
         return True
 
     except Exception as e:
-        print(f"Error during scraping: {e}")
+        print(f"Scraper error: {e}")
         return False
     finally:
         driver.quit()
@@ -80,9 +73,9 @@ def upload_to_s3():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M")
         s3_key = f"scraped_data/{timestamp}_{LOCAL_FILE}"
         s3.upload_file(LOCAL_FILE, S3_BUCKET_NAME, s3_key)
-        print(f"Uploaded to S3: {s3_key}")
+        print(f"S3 Success: {s3_key}")
     except Exception as e:
-        print(f"S3 Upload failed: {e}")
+        print(f"S3 Error: {e}")
 
 def upload_to_ftp():
     try:
@@ -91,9 +84,9 @@ def upload_to_ftp():
             ftp.login(user=FTP_USER, passwd=FTP_PASS)
             with open(LOCAL_FILE, 'rb') as f:
                 ftp.storbinary(f"STOR {LOCAL_FILE}", f)
-        print("FTP Upload successful.")
+        print("FTP Success.")
     except Exception as e:
-        print(f"FTP Upload failed: {e}")
+        print(f"FTP Error: {e}")
 
 if __name__ == "__main__":
     if run_scraper():
