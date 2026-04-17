@@ -44,7 +44,8 @@ def run_scraper():
                 Select(driver.find_element(By.ID, "author")).select_by_visible_text(author)
                 Select(driver.find_element(By.ID, "tag")).select_by_visible_text(tag)
                 
-                driver.find_element(By.NAME, "submit_button").click()
+                submit_btn = driver.find_element(By.NAME, "submit_button")
+                driver.execute_script("arguments[0].click();", submit_btn)
                 time.sleep(0.5) 
 
                 quotes = driver.find_elements(By.CLASS_NAME, "quote")
